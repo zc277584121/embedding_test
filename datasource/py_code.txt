@@ -1,0 +1,209 @@
+from models.bge_model import BgeModel
+from models.cohere_service import CohereService
+from models.jina_service import JinaService
+from models.openai_service import OpenAIService
+from models.voyage_service import VoyageService
+
+__all__ = [
+    'BgeModel',
+    'CohereService',
+    'JinaService',
+    'OpenAIService',
+    'VoyageService',
+]
+class ModelService:
+    def get_embedding(self, text):
+        pass
+
+    def get_token_num(self, text):
+        pass
+
+from sentence_transformers import SentenceTransformer
+from models.base import ModelService
+from transformers import AutoTokenizer, AutoModel
+
+
+class BgeModel(ModelService):
+    """
+    https://huggingface.co/BAAI/bge-base-en-v1.5
+    """
+
+    def __init__(self, model_name='BAAI/bge-base-en-v1.5'):
+        self.model_name = model_name
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = SentenceTransformer(model_name)
+
+    def get_embedding(self, text, normalize_embeddings=True):
+        return self.model.encode([text], normalize_embeddings=normalize_embeddings)[0]
+
+    def get_token_num(self, text):
+        tokens = self.tokenizer(text, padding=True, truncation=False, return_tensors="pt")
+        return len(tokens['input_ids'][0])
+
+
+if __name__ == '__main__':
+    model = BgeModel()
+    # res = model.get_embedding('I am a student')
+    res = model.get_token_num('I am a student')
+    print(res)
+import os
+import cohere
+from models.base import ModelService
+
+
+class CohereService(ModelService):
+    """
+    https://docs.cohere.com/reference/embed
+    """
+
+    def __init__(self, model_name='embed-english-v2.0'):
+        self.co = cohere.Client(os.getenv('CO_API_KEY'))
+        self.model_name = model_name
+
+    def get_embedding(self, text, input_type='search_document'):
+        """
+            input_type (`str`): "search_query" or "search_document" for retrieval case.
+        """
+        response = self.co.embed(
+            texts=[text],
+            model=self.model_name,
+            input_type=input_type,
+        )
+        return response['embeddings'][0]
+
+    def get_token_num(self, text):
+        response = self.co.tokenize(
+            text=text,
+            model=self.model_name
+        )
+        return len(response.tokens)
+
+
+if __name__ == '__main__':
+    cohere_service = CohereService()
+    res = cohere_service.get_token_num(
+        'It helped to have studied art, because the main goal of an online store builder is to make users look ')
+    print(res)
+import os
+import requests
+
+from models.base import ModelService
+
+
+class JinaService(ModelService):
+    def __init__(self, model_name='jina-embeddings-v2-base-en'):
+        self.model_name = model_name
+
+    def get_embedding(self, text):
+        response = self._request_text(text)
+        return response.json()['data'][0]['embedding']
+
+    def get_token_num(self, text):
+        response = self._request_text(text)
+        return response.json()['usage']['total_tokens']
+
+    def _request_text(self, text):
+        # '''
+        # {'model': 'jina-embeddings-v2-base-en', 'object': 'list', 'usage': {'total_tokens': 23, 'prompt_tokens': 23}, 'data': [
+        # {'object': 'embedding', 'index': 0,
+        # 'embedding': [-0.5820047, -0.5107356, ... 0.0498226]}]}
+        # '''
+        jina_api_key = os.getenv('JINA_API_KEY')
+        url = 'https://api.jina.ai/v1/embeddings'
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {jina_api_key}'
+        }
+
+        data = {
+            'input': [text],
+            'model': self.model_name
+        }
+        response = requests.post(url, headers=headers, json=data)
+        return response
+
+
+if __name__ == '__main__':
+    jina_service = JinaService()
+    res = jina_service.get_embedding(
+        'It helped to have studied art, because the main goal of an online store builder is to make users look ')
+    print(res)
+import os
+
+from models.base import ModelService
+from openai import OpenAI
+
+
+class OpenAIService(ModelService):
+    """
+    https://platform.openai.com/docs/guides/embeddings/use-cases
+    """
+    def __init__(self, model_name='text-embedding-ada-002'):
+        self.client = OpenAI()
+        self.client.api_key = os.getenv('OPENAI_API_KEY')
+        self.model_name = model_name
+
+    def get_embedding(self, text):
+        text = text.replace("\n", " ")
+        return self.client.embeddings.create(input=[text], model=self.model_name).data[0].embedding
+
+    def get_token_num(self, text):
+        import tiktoken
+        #  For second-generation embedding models like text-embedding-ada-002, use the cl100k_base encoding.
+        if self.model_name.endswith('002'):
+            encoding_name = 'cl100k_base'
+        else:
+            raise Exception(f"Unknown encoding name for model {self.model_name}")
+        encoding = tiktoken.get_encoding(encoding_name)
+        num_tokens = len(encoding.encode(text))
+        return num_tokens
+
+
+if __name__ == '__main__':
+    openai_service = OpenAIService()
+    # res = openai_service.get_embedding('hello')
+    res = openai_service.get_token_num(
+        'It helped to have studied art, because the main goal of an online store builder is to make users look ')
+    print(res)
+import os
+import requests
+import json
+import voyageai
+
+from models.base import ModelService
+from voyageai import get_embeddings
+
+
+class VoyageService(ModelService):
+    def __init__(self, model_name='voyage-01'):
+        self.model_name = model_name
+        voyageai.api_key = os.getenv('VOYAGE_API_KEY')
+
+    def get_embedding(self, text, input_type='document'):
+        """
+            input_type (`str`): "query" or "document" for retrieval case.
+        """
+        documents = [text]
+        embeddings = get_embeddings(documents, model=self.model_name, input_type=input_type)
+        return embeddings[0]
+
+    def get_token_num(self, text):
+        url = "https://api.voyageai.com/v1/embeddings"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {voyageai.api_key}"
+        }
+        data = {
+            "input": text,
+            "model": self.model_name
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        result = response.json()
+        return result['usage']['total_tokens']
+
+
+if __name__ == '__main__':
+    voyage_service = VoyageService()
+    res = voyage_service.get_token_num('hello')
+    print(res)
