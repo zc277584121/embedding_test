@@ -5,6 +5,10 @@ from models.base import ModelService
 
 
 class JinaService(ModelService):
+    """
+    https://jina.ai/embeddings/
+    """
+
     def __init__(self, model_name='jina-embeddings-v2-base-en'):
         self.model_name = model_name
 
@@ -21,6 +25,10 @@ class JinaService(ModelService):
         # {'model': 'jina-embeddings-v2-base-en', 'object': 'list', 'usage': {'total_tokens': 23, 'prompt_tokens': 23}, 'data': [
         # {'object': 'embedding', 'index': 0,
         # 'embedding': [-0.5820047, -0.5107356, ... 0.0498226]}]}
+        # '''
+        ## or
+        # '''
+        # {'detail': "ValidationError(model='TextDoc', errors=[{'loc': ('text',), 'msg': 'Single text cannot exceed 8192 tokens. 169162 tokens given.', 'type': 'value_error'}])"}
         # '''
         jina_api_key = os.getenv('JINA_API_KEY')
         url = 'https://api.jina.ai/v1/embeddings'

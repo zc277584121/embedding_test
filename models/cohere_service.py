@@ -1,5 +1,5 @@
 import os
-import cohere
+
 from models.base import ModelService
 
 
@@ -9,6 +9,8 @@ class CohereService(ModelService):
     """
 
     def __init__(self, model_name='embed-english-v2.0'):
+        import cohere
+
         self.co = cohere.Client(os.getenv('CO_API_KEY'))
         self.model_name = model_name
 
@@ -19,7 +21,7 @@ class CohereService(ModelService):
         response = self.co.embed(
             texts=[text],
             model=self.model_name,
-            input_type=input_type,
+            # input_type=input_type,#todo
         )
         return response['embeddings'][0]
 

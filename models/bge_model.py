@@ -1,6 +1,4 @@
-from sentence_transformers import SentenceTransformer
 from models.base import ModelService
-from transformers import AutoTokenizer, AutoModel
 
 
 class BgeModel(ModelService):
@@ -9,6 +7,9 @@ class BgeModel(ModelService):
     """
 
     def __init__(self, model_name='BAAI/bge-base-en-v1.5'):
+        from sentence_transformers import SentenceTransformer
+        from transformers import AutoTokenizer
+
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = SentenceTransformer(model_name)

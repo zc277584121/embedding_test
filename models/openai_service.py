@@ -1,14 +1,16 @@
 import os
 
 from models.base import ModelService
-from openai import OpenAI
 
 
 class OpenAIService(ModelService):
     """
     https://platform.openai.com/docs/guides/embeddings/use-cases
     """
+
     def __init__(self, model_name='text-embedding-ada-002'):
+        from openai import OpenAI
+
         self.client = OpenAI()
         self.client.api_key = os.getenv('OPENAI_API_KEY')
         self.model_name = model_name
